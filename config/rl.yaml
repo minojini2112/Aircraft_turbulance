@@ -1,0 +1,17 @@
+# config/rl.yaml
+
+env:
+  num_sensors: 50
+  max_selections: 10
+  flight_state_dim: 20
+  max_episode_steps: 100
+  energy_budget: 100.0
+  n_envs: 4
+
+rl:
+  lr: 3e-4
+  n_steps: 2048
+  batch_size: 64
+  n_epochs: 10
+  gamma: 0.99
+  total_timesteps: 1000000

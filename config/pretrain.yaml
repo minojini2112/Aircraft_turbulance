@@ -1,0 +1,22 @@
+# config/pretrain.yaml
+
+preprocessing:
+  sequence_length: 100
+  sampling_rate: 1.0
+  normalization: standard
+  handle_missing: interpolate
+
+data:
+  # Path to your ADS-B CSV
+  adsb_csv: data/raw/adsb/flight_data.csv
+  # List of GOES NetCDF file paths
+  goes_files:
+    - data/raw/goes/goes_file_1.nc
+    - data/raw/goes/goes_file_2.nc
+
+training:
+  device: cuda
+  batch_size: 32
+  lr: 1e-4
+  epochs: 50
+  mask_ratio: 0.75
