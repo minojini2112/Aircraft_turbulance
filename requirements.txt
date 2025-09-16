@@ -1,0 +1,16 @@
+torch>=2.0.0
+torchvision
+numpy
+pandas
+boto3
+xarray
+nexradaws
+wradlib
+gymnasium
+stable-baselines3
+tensorrt
+pycuda
+matplotlib
+scikit-learn
+requests
+pyopensky
