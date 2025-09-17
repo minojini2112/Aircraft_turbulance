@@ -9,8 +9,8 @@ class PatchEmbedding(nn.Module):
     """
     Convert time series segments into patch embeddings for transformer processing
     """
-    def _init_(self, seq_len, patch_size, in_channels, embed_dim):
-        super()._init_()
+    def __init__(self, seq_len, patch_size, in_channels, embed_dim):
+        super().__init__()
         self.seq_len = seq_len
         self.patch_size = patch_size
         self.num_patches = seq_len // patch_size
@@ -30,7 +30,7 @@ class FlightDataMAE(nn.Module):
     Masked Autoencoder for flight sensor data pretraining
     Based on the AeroTurb-RL paper architecture
     """
-    def _init_(self, 
+    def __init__(self, 
                  seq_len=100, 
                  patch_size=4, 
                  in_channels=50, 
@@ -41,7 +41,7 @@ class FlightDataMAE(nn.Module):
                  decoder_depth=4,
                  decoder_num_heads=8,
                  mask_ratio=0.75):
-        super()._init_()
+        super().__init__()
         
         self.seq_len = seq_len
         self.patch_size = patch_size
@@ -92,11 +92,11 @@ class FlightDataMAE(nn.Module):
     
     def initialize_weights(self):
         """Initialize positional embeddings and other parameters"""
-        # Initialize positional embeddings
-        pos_embed = self._get_2d_sincos_pos_embed(self.pos_embed.shape[-1], int(self.num_patches**0.5))
+        # Initialize positional embeddings for 1D sequence
+        pos_embed = self._get_1d_sincos_pos_embed(self.pos_embed.shape[-1], self.num_patches)
         self.pos_embed.data.copy_(torch.from_numpy(pos_embed).float().unsqueeze(0))
         
-        decoder_pos_embed = self._get_2d_sincos_pos_embed(self.decoder_pos_embed.shape[-1], int(self.num_patches**0.5))
+        decoder_pos_embed = self._get_1d_sincos_pos_embed(self.decoder_pos_embed.shape[-1], self.num_patches)
         self.decoder_pos_embed.data.copy_(torch.from_numpy(decoder_pos_embed).float().unsqueeze(0))
         
         # Initialize other parameters
@@ -112,6 +112,26 @@ class FlightDataMAE(nn.Module):
         elif isinstance(m, nn.LayerNorm):
             nn.init.constant_(m.bias, 0)
             nn.init.constant_(m.weight, 1.0)
+    
+    def _get_1d_sincos_pos_embed(self, embed_dim, num_patches):
+        """Generate 1D sin-cos positional embeddings for time series"""
+        assert embed_dim % 2 == 0
+        
+        # Create position indices
+        pos = np.arange(num_patches, dtype=np.float32)
+        
+        # Use half of dimensions to encode position
+        half_dim = embed_dim // 2
+        
+        # Create sinusoidal embeddings
+        emb = np.log(10000) / (half_dim - 1)
+        emb = np.exp(np.arange(half_dim, dtype=np.float32) * -emb)
+        emb = pos[:, None] * emb[None, :]
+        
+        # Concatenate sin and cos
+        pos_embed = np.concatenate([np.sin(emb), np.cos(emb)], axis=1)
+        
+        return pos_embed
     
     def _get_2d_sincos_pos_embed(self, embed_dim, grid_size):
         """Generate 2D sin-cos positional embeddings"""
@@ -237,7 +257,7 @@ class FlightDataMAE(nn.Module):
         if self.norm_pix_loss:
             mean = target.mean(dim=-1, keepdim=True)
             var = target.var(dim=-1, keepdim=True)
-            target = (target - mean) / (var + 1.e-6).5
+            target = (target - mean) / (var + 1.e-6)**0.5
         
         loss = (pred - target) ** 2
         loss = loss.mean(dim=-1)  # [N, L], mean loss per patch

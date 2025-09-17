@@ -13,14 +13,14 @@ def main():
 
     # Step 1: Self-supervised pretraining
     subprocess.run([
-        "python3", "scripts/training/run_pretraining.py",
+        "python", "scripts/training/run_pretraining.py",
         "--config", args.pretrain_cfg,
         "--output", args.encoder_out
     ], check=True)
 
     # Step 2: RL sensor selection training
     subprocess.run([
-        "python3", "scripts/training/run_rl_training.py",
+        "python", "scripts/training/run_rl_training.py",
         "--config", args.rl_cfg,
         "--output", args.agent_out,
         "--tensorboard", args.tensorboard
@@ -28,5 +28,5 @@ def main():
 
     print("✅ Full training pipeline finished.")
 
-if _name_ == "_main_":
+if __name__ == "__main__":
     main()

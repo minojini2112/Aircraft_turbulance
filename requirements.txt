@@ -24,7 +24,7 @@ pyopensky>=1.7.0
 requests>=2.28.0
 
 # Radar processing
-arm_pyart>=2.1.0
+arm_pyart>=2.1.0  # Requires Visual C++ Build Tools on Windows
 wradlib>=1.16.0
 
 # Geospatial
@@ -32,8 +32,8 @@ geopandas>=0.11.0
 cartopy>=0.21.0
 
 # Compression and deployment
-tensorrt>=8.5.0  # For NVIDIA Jetson
-pycuda>=2022.1
+tensorrt>=8.5.0  # For NVIDIA Jetson - requires NVIDIA drivers
+pycuda>=2022.1  # Requires NVIDIA CUDA
 
 # Utilities
 tqdm>=4.64.0
