@@ -15,8 +15,8 @@ data:
     - data/raw/goes/goes_file_2.nc
 
 training:
-  device: cuda
+  device: cpu
   batch_size: 32
-  lr: 1e-4
+  lr: 0.0001       # Changed from 1e-4 to 0.0001
   epochs: 50
   mask_ratio: 0.75

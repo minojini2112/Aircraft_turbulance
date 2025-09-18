@@ -47,6 +47,7 @@ class FlightDataMAE(nn.Module):
         self.patch_size = patch_size
         self.num_patches = seq_len // patch_size
         self.mask_ratio = mask_ratio
+        self.norm_pix_loss = False  # Add this line
         
         # Patch embedding
         self.patch_embed = PatchEmbedding(seq_len, patch_size, in_channels, embed_dim)
@@ -115,12 +116,10 @@ class FlightDataMAE(nn.Module):
     
     def _get_1d_sincos_pos_embed(self, embed_dim, num_patches):
         """Generate 1D sin-cos positional embeddings for time series"""
-        position = np.arange(num_patches, dtype=np.float32)
-        return self._get_1d_sincos_pos_embed_from_grid(embed_dim, position)
-    
-    def _get_1d_sincos_pos_embed_from_grid(self, embed_dim, position):
-        """Generate 1D sin-cos positional embeddings from position grid"""
         assert embed_dim % 2 == 0
+        
+        # Create position indices (including CLS token, so num_patches + 1)
+        pos = np.arange(num_patches + 1, dtype=np.float32)
         
         # Use half of dimensions to encode position
         half_dim = embed_dim // 2
@@ -128,53 +127,13 @@ class FlightDataMAE(nn.Module):
         # Create sinusoidal embeddings
         emb = np.log(10000) / (half_dim - 1)
         emb = np.exp(np.arange(half_dim, dtype=np.float32) * -emb)
-        emb = position[:, None] * emb[None, :]
+        emb = pos[:, None] * emb[None, :]
         
         # Concatenate sin and cos
         pos_embed = np.concatenate([np.sin(emb), np.cos(emb)], axis=1)
         
         return pos_embed
     
-    def _get_2d_sincos_pos_embed(self, embed_dim, grid_size):
-        """Generate 2D sin-cos positional embeddings"""
-        grid_h = np.arange(grid_size, dtype=np.float32)
-        grid_w = np.arange(grid_size, dtype=np.float32)
-        grid = np.meshgrid(grid_w, grid_h)  # here w goes first
-        grid = np.stack(grid, axis=0)
-        
-        grid = grid.reshape([2, 1, grid_size, grid_size])
-        pos_embed = self._get_2d_sincos_pos_embed_from_grid(embed_dim, grid)
-        return pos_embed
-    
-    def _get_2d_sincos_pos_embed_from_grid(self, embed_dim, grid):
-        assert embed_dim % 2 == 0
-        
-        # use half of dimensions to encode grid_h
-        emb_h = self._get_1d_sincos_pos_embed_from_grid(embed_dim // 2, grid[0])  # (H*W, D/2)
-        emb_w = self._get_1d_sincos_pos_embed_from_grid(embed_dim // 2, grid[1])  # (H*W, D/2)
-        
-        emb = np.concatenate([emb_h, emb_w], axis=1) # (H*W, D)
-        return emb
-    
-    def _get_1d_sincos_pos_embed_from_grid(self, embed_dim, pos):
-        """
-        embed_dim: output dimension for each position
-        pos: a list of positions to be encoded: size (M,)
-        out: (M, D)
-        """
-        assert embed_dim % 2 == 0
-        omega = np.arange(embed_dim // 2, dtype=np.float32)
-        omega /= embed_dim / 2.
-        omega = 1. / 10000**omega  # (D/2,)
-        
-        pos = pos.reshape(-1)  # (M,)
-        out = np.einsum('m,d->md', pos, omega)  # (M, D/2), outer product
-        
-        emb_sin = np.sin(out) # (M, D/2)
-        emb_cos = np.cos(out) # (M, D/2)
-        
-        emb = np.concatenate([emb_sin, emb_cos], axis=1)  # (M, D)
-        return emb
     
     def random_masking(self, x, mask_ratio):
         """
@@ -256,6 +215,15 @@ class FlightDataMAE(nn.Module):
         mask: [N, L], 0 is keep, 1 is remove, 
         """
         target = self.patchify(imgs)
+        
+        # Ensure pred and target have the same size
+        if pred.shape[1] != target.shape[1]:
+            # If pred is smaller, pad it or slice target to match
+            min_patches = min(pred.shape[1], target.shape[1])
+            pred = pred[:, :min_patches, :]
+            target = target[:, :min_patches, :]
+            mask = mask[:, :min_patches]
+        
         if self.norm_pix_loss:
             mean = target.mean(dim=-1, keepdim=True)
             var = target.var(dim=-1, keepdim=True)
@@ -296,6 +264,11 @@ class FlightDataMAE(nn.Module):
     def forward(self, imgs, mask_ratio=0.75):
         latent, mask, ids_restore = self.forward_encoder(imgs, mask_ratio)
         pred = self.forward_decoder(latent, ids_restore)  # [N, L, p*p*3]
+        
+        # Make sure mask matches pred size
+        if mask.shape[1] != pred.shape[1]:
+            mask = mask[:, :pred.shape[1]]
+        
         loss = self.forward_loss(imgs, pred, mask)
         return loss, pred, mask
 
