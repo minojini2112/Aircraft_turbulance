@@ -92,7 +92,7 @@ class FlightDataMAE(nn.Module):
     
     def initialize_weights(self):
         """Initialize positional embeddings and other parameters"""
-        # Initialize positional embeddings for 1D sequence
+        # Initialize positional embeddings for 1D time series (not 2D images)
         pos_embed = self._get_1d_sincos_pos_embed(self.pos_embed.shape[-1], self.num_patches)
         self.pos_embed.data.copy_(torch.from_numpy(pos_embed).float().unsqueeze(0))
         
@@ -115,10 +115,12 @@ class FlightDataMAE(nn.Module):
     
     def _get_1d_sincos_pos_embed(self, embed_dim, num_patches):
         """Generate 1D sin-cos positional embeddings for time series"""
+        position = np.arange(num_patches, dtype=np.float32)
+        return self._get_1d_sincos_pos_embed_from_grid(embed_dim, position)
+    
+    def _get_1d_sincos_pos_embed_from_grid(self, embed_dim, position):
+        """Generate 1D sin-cos positional embeddings from position grid"""
         assert embed_dim % 2 == 0
-        
-        # Create position indices
-        pos = np.arange(num_patches, dtype=np.float32)
         
         # Use half of dimensions to encode position
         half_dim = embed_dim // 2
@@ -126,7 +128,7 @@ class FlightDataMAE(nn.Module):
         # Create sinusoidal embeddings
         emb = np.log(10000) / (half_dim - 1)
         emb = np.exp(np.arange(half_dim, dtype=np.float32) * -emb)
-        emb = pos[:, None] * emb[None, :]
+        emb = position[:, None] * emb[None, :]
         
         # Concatenate sin and cos
         pos_embed = np.concatenate([np.sin(emb), np.cos(emb)], axis=1)
@@ -303,7 +305,7 @@ def build_flight_mae_model():
     model = FlightDataMAE(
         seq_len=100,
         patch_size=4, 
-        in_channels=50,  # Number of flight sensor channels
+        in_channels=18,  # Changed from 50 to 18 (matches your data)
         embed_dim=256,
         depth=6,
         num_heads=8,

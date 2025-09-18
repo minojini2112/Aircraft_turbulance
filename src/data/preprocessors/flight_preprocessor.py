@@ -318,7 +318,7 @@ class FlightDataPreprocessor:
         # Calculate target frequency - use a more reasonable approach
         if target_rate >= 1.0:
             # For high sampling rates, use seconds
-            freq = f'{1/target_rate:.0f}S'
+            freq = f'{1/target_rate:.0f}s'  # Fixed: lowercase 's' instead of 'S'
         else:
             # For low sampling rates, use minutes
             freq = f'{1/target_rate:.0f}min'
